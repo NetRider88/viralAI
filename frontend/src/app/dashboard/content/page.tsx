@@ -1,0 +1,964 @@
+'use client';
+
+import { useState } from 'react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { PlatformPreview } from '@/components/PlatformPreview';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  Download,
+  Instagram,
+  Youtube,
+  Twitter,
+  Linkedin,
+  Facebook,
+  Image as ImageIcon,
+  FileText,
+  Video,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import api from '@/lib/api';
+
+interface PlatformContent {
+  platform: string;
+  caption: string;
+  hashtags: string[];
+  hook?: string;
+  cta?: string;
+  character_count: number;
+}
+
+interface GeneratedContent {
+  id: string;
+  keyword: string;
+  platforms: PlatformContent[];
+  content_type: string;
+  tone: string;
+  angle: string;
+  images?: string[];
+  video_script?: string;
+  created_at: string;
+}
+
+const platforms = [
+  { id: 'instagram', name: 'Instagram', icon: Instagram, color: 'text-pink-600' },
+  { id: 'tiktok', name: 'TikTok', icon: Video, color: 'text-black' },
+  { id: 'youtube', name: 'YouTube', icon: Youtube, color: 'text-red-600' },
+  { id: 'linkedin', name: 'LinkedIn', icon: Linkedin, color: 'text-blue-600' },
+  { id: 'twitter', name: 'Twitter/X', icon: Twitter, color: 'text-sky-500' },
+  { id: 'facebook', name: 'Facebook', icon: Facebook, color: 'text-blue-700' },
+];
+
+// Platform-specific content types
+const platformContentTypes: Record<string, { value: string; label: string; description: string }[]> = {
+  instagram: [
+    { value: 'carousel', label: 'Carousel Post', description: 'Multi-slide educational content' },
+    { value: 'reel', label: 'Reel', description: 'Short-form video (15-90s)' },
+    { value: 'story', label: 'Story', description: 'Ephemeral 24h content' },
+    { value: 'post', label: 'Feed Post', description: 'Single image/video post' },
+  ],
+  tiktok: [
+    { value: 'video', label: 'TikTok Video', description: 'Short-form video (15-60s)' },
+    { value: 'series', label: 'Video Series', description: 'Multi-part content' },
+  ],
+  youtube: [
+    { value: 'short', label: 'YouTube Short', description: 'Vertical video (<60s)' },
+    { value: 'video', label: 'Standard Video', description: 'Long-form content' },
+    { value: 'community', label: 'Community Post', description: 'Text/image update' },
+  ],
+  linkedin: [
+    { value: 'post', label: 'Text Post', description: 'Professional update' },
+    { value: 'article', label: 'Article', description: 'Long-form content' },
+    { value: 'carousel', label: 'Document Carousel', description: 'PDF-style slides' },
+  ],
+  twitter: [
+    { value: 'tweet', label: 'Tweet', description: 'Short text post' },
+    { value: 'thread', label: 'Thread', description: 'Multi-tweet story' },
+  ],
+  facebook: [
+    { value: 'post', label: 'Feed Post', description: 'Standard update' },
+    { value: 'story', label: 'Story', description: 'Ephemeral content' },
+    { value: 'reel', label: 'Reel', description: 'Short-form video' },
+  ],
+};
+
+const tones = [
+  { value: 'professional', label: 'Professional', platforms: ['linkedin'] },
+  { value: 'casual', label: 'Casual', platforms: ['instagram', 'facebook', 'twitter'] },
+  { value: 'humorous', label: 'Humorous', platforms: ['tiktok', 'twitter'] },
+  { value: 'inspirational', label: 'Inspirational', platforms: ['instagram', 'linkedin'] },
+  { value: 'educational', label: 'Educational', platforms: ['youtube', 'linkedin'] },
+];
+
+const audienceTypes = [
+  { value: 'general', label: 'General Audience', description: 'Broad appeal', platforms: ['facebook', 'instagram'] },
+  { value: 'professionals', label: 'Professionals', description: 'Business-focused', platforms: ['linkedin'] },
+  { value: 'young-adults', label: 'Young Adults (18-30)', description: 'Gen Z & Millennials', platforms: ['tiktok', 'instagram'] },
+  { value: 'entrepreneurs', label: 'Entrepreneurs', description: 'Business owners', platforms: ['linkedin', 'twitter'] },
+  { value: 'creatives', label: 'Creatives', description: 'Artists & designers', platforms: ['instagram', 'youtube'] },
+  { value: 'tech-savvy', label: 'Tech Enthusiasts', description: 'Tech-focused', platforms: ['twitter', 'youtube'] },
+];
+
+const angles = [
+  { value: 'listicle', label: 'Listicle', description: 'Top 5, Best 10, etc.' },
+  { value: 'how-to', label: 'How-To', description: 'Step-by-step guide' },
+  { value: 'story', label: 'Story', description: 'Narrative format' },
+  { value: 'tips', label: 'Tips', description: 'Quick tips and tricks' },
+  { value: 'comparison', label: 'Comparison', description: 'Compare options' },
+];
+
+export default function ContentGenerationPage() {
+  const [keyword, setKeyword] = useState('');
+  const [selectedPlatform, setSelectedPlatform] = useState('instagram');
+  const [contentType, setContentType] = useState('carousel');
+  const [tone, setTone] = useState('casual');
+  const [audienceType, setAudienceType] = useState('general');
+  const [angle, setAngle] = useState('listicle');
+  const [generationMode, setGenerationMode] = useState<'both' | 'text' | 'image'>('both');
+  const [imageCount, setImageCount] = useState(1);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [adaptingToPlatform, setAdaptingToPlatform] = useState<string | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
+  const [adaptedContent, setAdaptedContent] = useState<Record<string, GeneratedContent>>({});
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  // Get available content types for selected platform
+  const getAvailableContentTypes = () => {
+    return platformContentTypes[selectedPlatform] || platformContentTypes.instagram;
+  };
+
+  // Get recommended tone for selected platform
+  const getRecommendedTone = () => {
+    return tones.find(t => t.platforms.includes(selectedPlatform))?.value || null;
+  };
+
+  // Get recommended audience for selected platform
+  const getRecommendedAudience = () => {
+    return audienceTypes.find(a => a.platforms.includes(selectedPlatform))?.value || null;
+  };
+
+  // Get other platforms to suggest adaptation
+  const getOtherPlatforms = () => {
+    return platforms.filter(p => p.id !== selectedPlatform && !adaptedContent[p.id]);
+  };
+
+  const handleGenerate = async () => {
+    if (!keyword.trim()) {
+      toast.error('Please enter a keyword or topic');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.post('/content/blocks/generate/', {
+        keyword: keyword.trim(),
+        platforms: [selectedPlatform],
+        content_type: contentType,
+        tone,
+        audience_type: audienceType,
+        angle,
+        generation_mode: generationMode,
+        image_count: (generationMode === 'both' || generationMode === 'image') ? imageCount : 0,
+        custom_prompt: customPrompt.trim() || undefined,
+      });
+      setGeneratedContent(response.data);
+      setAdaptedContent({}); // Clear previous adaptations
+      toast.success('Content generated successfully!');
+    } catch (error: any) {
+      console.error('Generation failed:', error);
+      toast.error(error.response?.data?.error || 'Failed to generate content');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdaptToPlatform = async (targetPlatform: string) => {
+    if (!generatedContent) return;
+
+    setAdaptingToPlatform(targetPlatform);
+    try {
+      // Get platform-specific settings
+      const targetTone = tones.find(t => t.platforms.includes(targetPlatform))?.value || tone;
+      const targetAudience = audienceTypes.find(a => a.platforms.includes(targetPlatform))?.value || audienceType;
+      const targetContentTypes = platformContentTypes[targetPlatform];
+      const targetContentType = targetContentTypes?.[0]?.value || 'post';
+
+      const response = await api.post('/content/blocks/generate/', {
+        keyword: keyword.trim(),
+        platforms: [targetPlatform],
+        content_type: targetContentType,
+        tone: targetTone,
+        audience_type: targetAudience,
+        angle,
+        generation_mode: generationMode,
+        image_count: (generationMode === 'both' || generationMode === 'image') ? imageCount : 0,
+        custom_prompt: customPrompt.trim() || undefined,
+        adapt_from: selectedPlatform, // Tell backend this is an adaptation
+      });
+      
+      setAdaptedContent(prev => ({
+        ...prev,
+        [targetPlatform]: response.data
+      }));
+      
+      toast.success(`Content adapted for ${platforms.find(p => p.id === targetPlatform)?.name}!`);
+    } catch (error: any) {
+      console.error('Adaptation failed:', error);
+      toast.error(error.response?.data?.error || 'Failed to adapt content');
+    } finally {
+      setAdaptingToPlatform(null);
+    }
+  };
+
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(label);
+    toast.success(`${label} copied!`);
+    setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  const downloadImage = async (url: string, index: number) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `viral-ai-image-${index + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Image downloaded!');
+    } catch (error) {
+      toast.error('Failed to download image');
+    }
+  };
+
+  const PlatformIcon = ({ platformId }: { platformId: string }) => {
+    const platform = platforms.find((p) => p.id === platformId);
+    if (!platform) return null;
+    const Icon = platform.icon;
+    return <Icon className={`h-5 w-5 ${platform.color}`} />;
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Content Generator
+          </h1>
+          <p className="text-gray-600">
+            Create AI-powered viral content optimized for every platform
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Configuration Panel */}
+          <div className="lg:col-span-1 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Content Settings</CardTitle>
+                <CardDescription>Configure your content generation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Keyword */}
+                <div className="space-y-2">
+                  <Label htmlFor="keyword">Keyword/Topic *</Label>
+                  <Input
+                    id="keyword"
+                    placeholder="e.g., AI productivity tools"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                  />
+                </div>
+
+                {/* Platform Selection */}
+                <div className="space-y-3">
+                  <Label>Select Platform *</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {platforms.map((platform) => {
+                      const Icon = platform.icon;
+                      const isSelected = selectedPlatform === platform.id;
+                      return (
+                        <button
+                          key={platform.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPlatform(platform.id);
+                            // Auto-select first content type for new platform
+                            const newContentTypes = platformContentTypes[platform.id];
+                            if (newContentTypes && newContentTypes.length > 0) {
+                              setContentType(newContentTypes[0].value);
+                            }
+                          }}
+                          className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                            isSelected
+                              ? 'border-purple-600 bg-purple-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <Icon className={`h-5 w-5 ${platform.color}`} />
+                          <span className="text-sm font-medium">{platform.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Content Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="contentType">Content Type</Label>
+                  <Select value={contentType} onValueChange={setContentType}>
+                    <SelectTrigger id="contentType">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableContentTypes().map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          <div>
+                            <div className="font-medium">{type.label}</div>
+                            <div className="text-xs text-gray-500">{type.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tone */}
+                <div className="space-y-2">
+                  <Label htmlFor="tone">Tone</Label>
+                  <Select value={tone} onValueChange={setTone}>
+                    <SelectTrigger id="tone">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tones.map((t) => {
+                        const isRecommended = t.value === getRecommendedTone();
+                        return (
+                          <SelectItem key={t.value} value={t.value}>
+                            <div className="flex items-center gap-2">
+                              <span>{t.label}</span>
+                              {isRecommended && (
+                                <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Audience Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="audienceType">Target Audience</Label>
+                  <Select value={audienceType} onValueChange={setAudienceType}>
+                    <SelectTrigger id="audienceType">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {audienceTypes.map((a) => {
+                        const isRecommended = a.value === getRecommendedAudience();
+                        return (
+                          <SelectItem key={a.value} value={a.value}>
+                            <div className="flex items-center gap-2">
+                              <div>
+                                <div className="font-medium">{a.label}</div>
+                                <div className="text-xs text-gray-500">{a.description}</div>
+                              </div>
+                              {isRecommended && (
+                                <Badge variant="secondary" className="text-xs ml-2">Recommended</Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Angle */}
+                <div className="space-y-2">
+                  <Label htmlFor="angle">Content Angle</Label>
+                  <Select value={angle} onValueChange={setAngle}>
+                    <SelectTrigger id="angle">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {angles.map((a) => (
+                        <SelectItem key={a.value} value={a.value}>
+                          <div>
+                            <div className="font-medium">{a.label}</div>
+                            <div className="text-xs text-gray-500">{a.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Generation Mode */}
+                <div className="space-y-3">
+                  <Label>What to Generate</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGenerationMode('both')}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        generationMode === 'both'
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <Sparkles className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+                      <div className="text-xs font-medium">Both</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGenerationMode('text')}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        generationMode === 'text'
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <FileText className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+                      <div className="text-xs font-medium">Text Only</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGenerationMode('image')}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        generationMode === 'image'
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <ImageIcon className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+                      <div className="text-xs font-medium">Image Only</div>
+                    </button>
+                  </div>
+                  {(generationMode === 'both' || generationMode === 'image') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="imageCount">Number of Images</Label>
+                      <Input
+                        id="imageCount"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={imageCount}
+                        onChange={(e) => setImageCount(parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Brand Guidelines & Custom Instructions */}
+                <div className="space-y-2">
+                  <Label htmlFor="customPrompt">Brand Guidelines & Custom Instructions (Optional)</Label>
+                  <Textarea
+                    id="customPrompt"
+                    placeholder="Examples:
+• Brand colors: Use #FF6B6B (primary) and #4ECDC4 (secondary)
+• Tone: Professional yet approachable
+• Always mention: eco-friendly, sustainable
+• Avoid: aggressive sales language
+• Target: Small business owners aged 30-50
+• Style: Minimalist, clean, modern"
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    rows={6}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Add your brand colors, tone preferences, keywords to include/avoid, or any specific requirements for the AI to follow.
+                  </p>
+                </div>
+
+                {/* Generate Button */}
+                <Button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className="w-full h-11"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Generate Content
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Results Panel */}
+          <div className="lg:col-span-2">
+            {generatedContent ? (
+              <div className="space-y-6">
+                {/* Platform Content */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Generated Content</CardTitle>
+                    <CardDescription>
+                      Platform-optimized content for {generatedContent.keyword}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs defaultValue={generatedContent.platforms[0]?.platform} className="w-full">
+                      <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${generatedContent.platforms.length + Object.keys(adaptedContent).length}, 1fr)` }}>
+                        {/* Original Platform */}
+                        {generatedContent.platforms.map((platform) => (
+                          <TabsTrigger key={platform.platform} value={platform.platform} className="capitalize">
+                            <PlatformIcon platformId={platform.platform} />
+                            <span className="ml-2 hidden sm:inline">{platform.platform}</span>
+                          </TabsTrigger>
+                        ))}
+                        
+                        {/* Adapted Platforms */}
+                        {Object.keys(adaptedContent).map((platformId) => (
+                          <TabsTrigger key={`adapted-${platformId}`} value={platformId} className="capitalize">
+                            <PlatformIcon platformId={platformId} />
+                            <span className="ml-2 hidden sm:inline">{platformId}</span>
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+
+                      {generatedContent.platforms.map((platform) => (
+                        <TabsContent key={platform.platform} value={platform.platform} className="mt-6 space-y-6">
+                          {/* Platform Preview */}
+                          <div>
+                            <Label className="text-sm font-semibold mb-3 block">Platform Preview</Label>
+                            <PlatformPreview
+                              platform={platform.platform}
+                              caption={platform.caption}
+                              hashtags={platform.hashtags || []}
+                              hook={platform.hook}
+                              images={generatedContent.images}
+                            />
+                          </div>
+
+                          {/* Hook */}
+                          {platform.hook && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <Label className="text-sm font-semibold">Hook</Label>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyText(platform.hook!, 'Hook')}
+                                >
+                                  {copiedText === 'Hook' ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="p-4 bg-purple-50 rounded-lg">
+                                <p className="text-sm font-medium text-purple-900">{platform.hook}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Caption */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-sm font-semibold">Caption</Label>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">{platform.character_count} chars</Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyText(platform.caption, 'Caption')}
+                                >
+                                  {copiedText === 'Caption' ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-lg">
+                              <p className="text-sm whitespace-pre-wrap">{platform.caption}</p>
+                            </div>
+                          </div>
+
+                          {/* Hashtags */}
+                          {platform.hashtags.length > 0 && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <Label className="text-sm font-semibold">Hashtags</Label>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyText(platform.hashtags.join(' '), 'Hashtags')}
+                                >
+                                  {copiedText === 'Hashtags' ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {platform.hashtags.map((tag, idx) => (
+                                  <Badge key={idx} variant="outline">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* CTA */}
+                          {platform.cta && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <Label className="text-sm font-semibold">Call-to-Action</Label>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyText(platform.cta!, 'CTA')}
+                                >
+                                  {copiedText === 'CTA' ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="p-4 bg-blue-50 rounded-lg">
+                                <p className="text-sm font-medium text-blue-900">{platform.cta}</p>
+                              </div>
+                            </div>
+                          )}
+                        </TabsContent>
+                      ))}
+
+                      {/* Adapted Platform Tabs */}
+                      {Object.keys(adaptedContent).map((platformId) => {
+                        const content = adaptedContent[platformId];
+                        const platformData = content.platforms[0];
+                        
+                        return (
+                          <TabsContent key={`adapted-${platformId}`} value={platformId} className="mt-6 space-y-6">
+                            {/* Platform Preview */}
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <Label className="text-sm font-semibold">Platform Preview</Label>
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                                  Adapted from {selectedPlatform}
+                                </Badge>
+                              </div>
+                              <PlatformPreview
+                                platform={platformId}
+                                caption={platformData.caption}
+                                hashtags={platformData.hashtags || []}
+                                hook={platformData.hook}
+                                images={content.images || generatedContent.images}
+                              />
+                            </div>
+
+                            {/* Hook */}
+                            {platformData.hook && (
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-sm font-semibold">Hook</Label>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => copyText(platformData.hook!, 'Hook')}
+                                  >
+                                    {copiedText === 'Hook' ? (
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                                <div className="p-4 bg-purple-50 rounded-lg">
+                                  <p className="text-sm font-medium text-purple-900">{platformData.hook}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Caption */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <Label className="text-sm font-semibold">Caption</Label>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary">{platformData.character_count} chars</Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => copyText(platformData.caption, 'Caption')}
+                                  >
+                                    {copiedText === 'Caption' ? (
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="p-4 bg-gray-50 rounded-lg">
+                                <p className="text-sm whitespace-pre-wrap">{platformData.caption}</p>
+                              </div>
+                            </div>
+
+                            {/* Hashtags */}
+                            {platformData.hashtags && platformData.hashtags.length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-sm font-semibold">Hashtags</Label>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => copyText(platformData.hashtags!.join(' '), 'Hashtags')}
+                                  >
+                                    {copiedText === 'Hashtags' ? (
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {platformData.hashtags.map((tag, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-purple-600">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* CTA */}
+                            {platformData.cta && (
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-sm font-semibold">Call-to-Action</Label>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => copyText(platformData.cta!, 'CTA')}
+                                  >
+                                    {copiedText === 'CTA' ? (
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                                <div className="p-4 bg-blue-50 rounded-lg">
+                                  <p className="text-sm font-medium text-blue-900">{platformData.cta}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Adapted Images */}
+                            {content.images && content.images.length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-sm font-semibold">Platform-Optimized Images</Label>
+                                  <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                                    {platformId === 'tiktok' ? 'Vertical 9:16' : 
+                                     platformId === 'youtube' ? 'Horizontal 16:9' : 
+                                     'Square 1:1'}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  {content.images.filter((url: any): url is string => url != null && typeof url === 'string').map((url: string, idx: number) => (
+                                    <div key={idx} className="relative group">
+                                      <img
+                                        src={url}
+                                        alt={`${platformId} optimized ${idx + 1}`}
+                                        className="w-full h-48 object-cover rounded-lg border-2 border-purple-200"
+                                        onError={(e) => {
+                                          console.error('Image failed to load:', url);
+                                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage Error%3C/text%3E%3C/svg%3E';
+                                        }}
+                                      />
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                        <Button
+                                          variant="secondary"
+                                          size="sm"
+                                          onClick={() => downloadImage(url, idx)}
+                                        >
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </TabsContent>
+                        );
+                      })}
+                    </Tabs>
+                  </CardContent>
+                </Card>
+
+                {/* Generated Images */}
+                {generatedContent.images && generatedContent.images.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Generated Images</CardTitle>
+                      <CardDescription>
+                        AI-generated images for your content
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {generatedContent.images.filter((url): url is string => url != null && typeof url === 'string').map((url, idx) => (
+                          <div key={idx} className="relative group">
+                            <img
+                              src={url}
+                              alt={`Generated ${idx + 1}`}
+                              className="w-full h-48 object-cover rounded-lg"
+                              onError={(e) => {
+                                console.error('Image failed to load:', url);
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage Error%3C/text%3E%3C/svg%3E';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => downloadImage(url, idx)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Video Script */}
+                {generatedContent.video_script && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>Video Script</CardTitle>
+                          <CardDescription>
+                            Script for your video content
+                          </CardDescription>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyText(generatedContent.video_script!, 'Video Script')}
+                        >
+                          {copiedText === 'Video Script' ? (
+                            <Check className="h-4 w-4 text-green-600 mr-2" />
+                          ) : (
+                            <Copy className="h-4 w-4 mr-2" />
+                          )}
+                          Copy Script
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm whitespace-pre-wrap">{generatedContent.video_script}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Adapt to Other Platforms */}
+                {getOtherPlatforms().length > 0 && (
+                  <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+                    <CardHeader>
+                      <CardTitle>Adapt to Other Platforms</CardTitle>
+                      <CardDescription>
+                        Create optimized versions of this content for other platforms
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {getOtherPlatforms().map((platform) => {
+                          const Icon = platform.icon;
+                          const isAdapting = adaptingToPlatform === platform.id;
+                          return (
+                            <Button
+                              key={platform.id}
+                              variant="outline"
+                              onClick={() => handleAdaptToPlatform(platform.id)}
+                              disabled={isAdapting}
+                              className="h-auto py-3 flex-col gap-2"
+                            >
+                              {isAdapting ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                              ) : (
+                                <Icon className={`h-5 w-5 ${platform.color}`} />
+                              )}
+                              <span className="text-xs font-medium">
+                                {isAdapting ? 'Adapting...' : `Adapt for ${platform.name}`}
+                              </span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+              </div>
+            ) : (
+              <Card className="border-dashed border-2 h-full">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <Sparkles className="h-16 w-16 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Ready to Create Viral Content?
+                  </h3>
+                  <p className="text-gray-600 text-center max-w-md">
+                    Configure your settings on the left and click "Generate Content" to create
+                    platform-optimized posts powered by AI.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
