@@ -226,3 +226,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Site URL for link generation
+SITE_URL = env('SITE_URL', default='https://viral.ai-it.io')
+BASE_URL = SITE_URL
