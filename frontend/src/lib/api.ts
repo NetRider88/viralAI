@@ -8,6 +8,9 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: false, // Disable credentials to avoid CSRF issues
+  xsrfCookieName: undefined, // Disable CSRF cookie
+  xsrfHeaderName: undefined, // Disable CSRF header
 });
 
 // Request interceptor to add auth token

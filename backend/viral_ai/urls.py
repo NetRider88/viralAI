@@ -8,7 +8,7 @@ from .views import home, health_check
 urlpatterns = [
     path('', home, name='home'),
     path('health/', health_check, name='health_check'),
-    path('admin/', admin.site.urls),
+    path('management-portal-x7k9/', admin.site.urls),
     path('api/', include('viral_ai.api_urls')),
     path('l/<str:short_code>/', redirect_short_link, name='redirect_short_link'),
 ]

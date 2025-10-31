@@ -1,0 +1,35 @@
+{
+  "name": "VIRAL.AI - AI Content Creation",
+  "short_name": "VIRAL.AI",
+  "description": "From Keyword to Viral Post in 60 Seconds",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business", "social"],
+  "shortcuts": [
+    {
+      "name": "Create Content",
+      "short_name": "Create",
+      "description": "Start creating viral content",
+      "url": "/dashboard/content",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Keyword Research",
+      "short_name": "Keywords",
+      "description": "Research trending keywords",
+      "url": "/dashboard/keywords",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

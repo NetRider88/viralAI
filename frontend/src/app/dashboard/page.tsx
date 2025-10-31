@@ -10,9 +10,9 @@ import { Sparkles, Search, FileText, Link2, TrendingUp, Zap, Loader2, ArrowRight
 import api from '@/lib/api';
 
 interface UsageStats {
-  content_blocks_generated: number;
-  keywords_researched: number;
-  images_generated: number;
+  content_blocks_created: number;
+  api_calls: number;
+  image_generations: number;
   links_created: number;
   total_usage: number;
   limit: number;
@@ -38,7 +38,7 @@ export default function DashboardPage() {
     const fetchUsage = async () => {
       try {
         const response = await api.get('/auth/usage/');
-        setUsage(response.data);
+        setUsage(response.data.usage);
       } catch (error) {
         console.error('Failed to fetch usage:', error);
       } finally {
@@ -83,7 +83,7 @@ export default function DashboardPage() {
             <Sparkles className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usage?.content_blocks_generated || 0}</div>
+            <div className="text-2xl font-bold">{usage?.content_blocks_created || 0}</div>
             <p className="text-xs text-gray-500 mt-1">
               This month
             </p>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             <Search className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usage?.keywords_researched || 0}</div>
+            <div className="text-2xl font-bold">{usage?.api_calls || 0}</div>
             <p className="text-xs text-gray-500 mt-1">
               This month
             </p>
@@ -113,7 +113,7 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usage?.images_generated || 0}</div>
+            <div className="text-2xl font-bold">{usage?.image_generations || 0}</div>
             <p className="text-xs text-gray-500 mt-1">
               This month
             </p>

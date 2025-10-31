@@ -43,8 +43,6 @@ interface PlatformContent {
   hashtags: string[];
   hook?: string;
   cta?: string;
-  images?: string[];
-  content_type?: string;
   character_count: number;
 }
 
@@ -72,9 +70,10 @@ const platforms = [
 // Platform-specific content types
 const platformContentTypes: Record<string, { value: string; label: string; description: string }[]> = {
   instagram: [
-    { value: 'post', label: 'Feed Post', description: 'Single image/video post' },
+    { value: 'carousel', label: 'Carousel Post', description: 'Multi-slide educational content' },
     { value: 'reel', label: 'Reel', description: 'Short-form video (15-90s)' },
     { value: 'story', label: 'Story', description: 'Ephemeral 24h content' },
+    { value: 'post', label: 'Feed Post', description: 'Single image/video post' },
   ],
   tiktok: [
     { value: 'video', label: 'TikTok Video', description: 'Short-form video (15-60s)' },
@@ -88,6 +87,7 @@ const platformContentTypes: Record<string, { value: string; label: string; descr
   linkedin: [
     { value: 'post', label: 'Text Post', description: 'Professional update' },
     { value: 'article', label: 'Article', description: 'Long-form content' },
+    { value: 'carousel', label: 'Document Carousel', description: 'PDF-style slides' },
   ],
   twitter: [
     { value: 'tweet', label: 'Tweet', description: 'Short text post' },
@@ -128,21 +128,18 @@ const angles = [
 export default function ContentGenerationPage() {
   const [keyword, setKeyword] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState('instagram');
-  const [contentType, setContentType] = useState('post');
+  const [contentType, setContentType] = useState('carousel');
   const [tone, setTone] = useState('casual');
   const [audienceType, setAudienceType] = useState('general');
   const [angle, setAngle] = useState('listicle');
   const [generationMode, setGenerationMode] = useState<'both' | 'text' | 'image'>('both');
-  const [imageCount] = useState(1); // Always 1 image
+  const [imageCount, setImageCount] = useState(1);
   const [customPrompt, setCustomPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [adaptingToPlatform, setAdaptingToPlatform] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [adaptedContent, setAdaptedContent] = useState<Record<string, GeneratedContent>>({});
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [humanizeContent, setHumanizeContent] = useState(true);
-  const [artStyle, setArtStyle] = useState("modern");
-  const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
 
   // Get available content types for selected platform
   const getAvailableContentTypes = () => {
@@ -182,8 +179,6 @@ export default function ContentGenerationPage() {
         generation_mode: generationMode,
         image_count: (generationMode === 'both' || generationMode === 'image') ? imageCount : 0,
         custom_prompt: customPrompt.trim() || undefined,
-        humanize: true,
-        art_style: artStyle,
       });
       setGeneratedContent(response.data);
       setAdaptedContent({}); // Clear previous adaptations
@@ -217,8 +212,6 @@ export default function ContentGenerationPage() {
         generation_mode: generationMode,
         image_count: (generationMode === 'both' || generationMode === 'image') ? imageCount : 0,
         custom_prompt: customPrompt.trim() || undefined,
-        humanize: true,
-        art_style: artStyle,
         adapt_from: selectedPlatform, // Tell backend this is an adaptation
       });
       
@@ -468,7 +461,19 @@ export default function ContentGenerationPage() {
                       <div className="text-xs font-medium">Image Only</div>
                     </button>
                   </div>
-
+                  {(generationMode === 'both' || generationMode === 'image') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="imageCount">Number of Images</Label>
+                      <Input
+                        id="imageCount"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={imageCount}
+                        onChange={(e) => setImageCount(parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Brand Guidelines & Custom Instructions */}
@@ -491,70 +496,6 @@ export default function ContentGenerationPage() {
                   <p className="text-xs text-gray-500">
                     Add your brand colors, tone preferences, keywords to include/avoid, or any specific requirements for the AI to follow.
                   </p>
-                </div>
-
-
-                {/* Art Direction Style */}
-                {generationMode !== 'text' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="artStyle">🎨 Art Direction Style</Label>
-                    <Select value={artStyle} onValueChange={setArtStyle}>
-                      <SelectTrigger id="artStyle">
-                        <SelectValue placeholder="Select art style" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="modern">Modern - Contemporary, sleek</SelectItem>
-                        <SelectItem value="minimalistic">Minimalistic - Clean, simple</SelectItem>
-                        <SelectItem value="bold">Bold - Strong, impactful</SelectItem>
-                        <SelectItem value="elegant">Elegant - Sophisticated</SelectItem>
-                        <SelectItem value="playful">Playful - Fun, whimsical</SelectItem>
-                        <SelectItem value="retro">Retro - 1970s-1980s</SelectItem>
-                        <SelectItem value="vintage">Vintage - Classic</SelectItem>
-                        <SelectItem value="pop">Pop Art - Bold, colorful</SelectItem>
-                        <SelectItem value="surprise">✨ Surprise Me!</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500">Visual style for images</p>
-                  </div>
-                )}
-
-                {/* Reference Upload */}
-                <div className="space-y-2">
-                  <Label htmlFor="reference">📎 Reference Files (Optional)</Label>
-                  <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-purple-400 transition-colors cursor-pointer">
-                    <input
-                      type="file"
-                      id="reference"
-                      multiple
-                      accept=".pdf,.doc,.docx,.txt,image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files) {
-                          setReferenceFiles(Array.from(e.target.files));
-                        }
-                      }}
-                    />
-                    <label htmlFor="reference" className="cursor-pointer block">
-                      <FileText className="w-6 h-6 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm text-gray-600">
-                        {referenceFiles.length > 0 ? `${referenceFiles.length} file(s) selected` : 'Click to upload reference files'}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">PDF, DOC, TXT, or images</p>
-                    </label>
-                  </div>
-                  {referenceFiles.length > 0 && (
-                    <div className="space-y-1 mt-2">
-                      {referenceFiles.map((file, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
-                          <span className="truncate flex-1">{file.name}</span>
-                          <button
-                            className="ml-2 text-gray-500 hover:text-red-500"
-                            onClick={() => setReferenceFiles(referenceFiles.filter((_, i) => i !== idx))}
-                          >×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Generate Button */}
@@ -631,7 +572,7 @@ export default function ContentGenerationPage() {
                               caption={platform.caption}
                               hashtags={platform.hashtags || []}
                               hook={platform.hook}
-                              images={platform.images || generatedContent.images || []}
+                              images={generatedContent.images}
                             />
                           </div>
 

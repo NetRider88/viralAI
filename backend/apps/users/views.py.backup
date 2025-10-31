@@ -252,7 +252,7 @@ class ForgotPasswordView(APIView):
             message = Mail(
                 from_email='john@ai-it.io',
                 to_emails=email,
-                subject='Reset Your Password - AI-IT.IO',
+                subject='Reset Your Password - VIRAL.AI',
                 html_content=f'''
                 <!DOCTYPE html>
                 <html>
@@ -267,23 +267,23 @@ class ForgotPasswordView(APIView):
                     </style>
                 </head>
                 <body>
-                    <div class="container">
-                        <div class="header">
+                    <div class=container>
+                        <div class=header>
                             <h1>🔐 Password Reset Request</h1>
                         </div>
-                        <div class="content">
+                        <div class=content>
                             <p>Hi there,</p>
                             <p>We received a request to reset your password for your VIRAL.AI account.</p>
                             <p>Click the button below to reset your password:</p>
                             <center>
-                                <a href="{reset_url}" class="button">Reset Password</a>
+                                <a href={reset_url} class=button>Reset Password</a>
                             </center>
                             <p><strong>This link expires in 24 hours.</strong></p>
                             <p>If you didn't request this, you can safely ignore this email.</p>
-                            <p>Best regards,<br>The AI-IT.IO Team</p>
+                            <p>Best regards,<br>The VIRAL.AI Team</p>
                         </div>
-                        <div class="footer">
-                            <p>© 2025 AI-IT.IO. All rights reserved.</p>
+                        <div class=footer>
+                            <p>© 2025 VIRAL.AI. All rights reserved.</p>
                             <p>If the button doesn't work, copy and paste this link:<br>{reset_url}</p>
                         </div>
                     </div>

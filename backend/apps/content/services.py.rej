@@ -1,0 +1,14 @@
+--- apps/content/services.py
++++ apps/content/services.py
+@@ -168,6 +171,11 @@ class ContentGenerationService:
+ Tone: {tone}
+ Angle: {angle}
+ 
++"""
++        if custom_prompt:
++            prompt += f"""Brand Guidelines & Custom Instructions:
++{custom_prompt}
++
+ """
+         
+         prompt += f"""Platform Guidelines:

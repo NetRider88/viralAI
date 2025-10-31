@@ -78,14 +78,34 @@ class ContentBlockViewSet(viewsets.ModelViewSet):
                 logger.info(f"Generating content for {platform}")
                 
                 # Generate text content
+                logger.info(f"Custom prompt received: {data.get('custom_prompt', 'None')}")
+                print(f"DEBUG: Custom prompt = {data.get('custom_prompt', 'EMPTY')}")
+                with open('/tmp/custom_prompt_debug.txt', 'a') as f: f.write(f"Custom prompt: {data.get('custom_prompt', 'EMPTY')}\n")
                 content_data = service.generate_content(
                     keyword=data['keyword'],
                     platform=platform,
                     content_type=data.get('content_type', 'post'),
                     tone=data.get('tone', 'professional'),
                     angle=data.get('angle', 'informative'),
-                    niche=data.get('niche')
+                    niche=data.get('niche'),
+                    custom_prompt=data.get('custom_prompt')
                 )
+
+                # Post-process: Append custom instructions if provided
+                if data.get('custom_prompt'):
+                    custom_text = data.get('custom_prompt')
+                    # Extract the actual instruction (e.g., "Always end with: Visit ai-it.io")
+                    if 'end with:' in custom_text.lower():
+                        ending = custom_text.split('end with:', 1)[1].strip()
+                        if content_data.get('caption'):
+                            content_data['caption'] = content_data['caption'].rstrip() + f" {ending}"
+                        if content_data.get('cta'):
+                            content_data['cta'] = content_data['cta'].rstrip() + f" {ending}"
+                    elif 'mention:' in custom_text.lower():
+                        mention = custom_text.split('mention:', 1)[1].strip()
+                        if content_data.get('caption'):
+                            content_data['caption'] = content_data['caption'].rstrip() + f" {mention}"
+                
                 
                 images = []
                 video_script = {}

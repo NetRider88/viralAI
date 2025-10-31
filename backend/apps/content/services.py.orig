@@ -90,8 +90,7 @@ class ContentGenerationService:
         content_type: str,
         tone: str = 'professional',
         angle: str = 'informative',
-        niche: Optional[str] = None,
-        custom_prompt: Optional[str] = None
+        niche: Optional[str] = None
     ) -> Dict:
         """
         Generate platform-optimized content using Claude Sonnet 3.7
@@ -154,8 +153,7 @@ class ContentGenerationService:
         tone: str,
         angle: str,
         niche: Optional[str],
-        guidelines: Dict,
-        custom_prompt: Optional[str] = None
+        guidelines: Dict
     ) -> str:
         """Build the prompt for Claude"""
         
@@ -166,29 +164,15 @@ class ContentGenerationService:
 Platform: {platform.upper()}
 Content Type: {content_type}
 Tone: {tone}
-Angle: {angle}"""
-        
-        # Add custom instructions at the TOP for maximum visibility
-        if custom_prompt:
-            logger.info(f"Custom instructions added: {custom_prompt[:50]}...")
-            prompt += f"""
+Angle: {angle}
 
-⚠️ CRITICAL BRAND REQUIREMENTS (MUST FOLLOW):
-{custom_prompt}
-
-YOU MUST INCORPORATE THE ABOVE REQUIREMENTS INTO YOUR RESPONSE. THIS IS MANDATORY AND NON-NEGOTIABLE.
-
-"""
-        
-        custom_prompt_text = custom_prompt if custom_prompt else "No specific brand guidelines"
-        prompt += f"""Platform Guidelines:
+Platform Guidelines:
 - Max caption length: {guidelines.get('caption_max_length', 2000)} characters
 - Optimal hashtags: {guidelines.get('optimal_hashtags', 10)}
 
 Requirements:
-1. MANDATORY: You MUST follow these brand guidelines: {custom_prompt_text}
-2. Write an engaging caption that hooks viewers in the first line
-3. Include a clear call-to-action that incorporates the brand guidelines from requirement #1
+1. Write an engaging caption that hooks viewers in the first line
+2. Include a clear call-to-action
 3. Add relevant emojis naturally (don't overdo it)
 4. Generate {guidelines.get('optimal_hashtags', 10)} highly relevant hashtags
 5. If it's a carousel/thread, provide slide/tweet breakdowns
@@ -203,10 +187,6 @@ Format your response as JSON:
 }}
 
 Make it viral-worthy and platform-optimized!"""
-        
-        if custom_prompt:
-            logger.info(f"Custom instructions added: {custom_prompt[:50]}...")
-            prompt += f"\n\nADDITIONAL BRAND GUIDELINES:\n{custom_prompt}"
         
         return prompt
     

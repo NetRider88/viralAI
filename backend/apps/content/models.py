@@ -151,3 +151,51 @@ class ImageLibrary(models.Model):
     
     def __str__(self):
         return self.filename
+
+
+class ReferenceFile(models.Model):
+    """User-uploaded reference files for content inspiration"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reference_files')
+    file = models.FileField(upload_to='references/')
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=50)
+    extracted_text = models.TextField(blank=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'reference_files'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.file_name}"
+
+
+class ArtDirectionPreset(models.Model):
+    """Art direction style presets"""
+    
+    STYLE_CHOICES = [
+        ('minimalistic', 'Minimalistic'),
+        ('retro', 'Retro'),
+        ('vintage', 'Vintage'),
+        ('pop', 'Pop Art'),
+        ('modern', 'Modern'),
+        ('elegant', 'Elegant'),
+        ('bold', 'Bold'),
+        ('playful', 'Playful'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, choices=STYLE_CHOICES)
+    description = models.TextField()
+    prompt_template = models.TextField()
+    color_palette = models.JSONField(default=list)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'art_direction_presets'
+    
+    def __str__(self):
+        return self.get_name_display()
