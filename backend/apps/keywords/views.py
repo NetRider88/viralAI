@@ -7,6 +7,7 @@ from .models import KeywordResearch
 from .serializers import KeywordResearchSerializer, KeywordResearchCreateSerializer
 from .services import KeywordResearchService
 from .youtube_service import YouTubeResearchService
+from .serpapi_service import SerpApiTrendingService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -103,5 +104,140 @@ class KeywordResearchViewSet(viewsets.ModelViewSet):
             logger.error(f"Error performing keyword research: {str(e)}")
             return Response(
                 {'error': 'Failed to perform keyword research', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def trending(self, request):
+        """
+        Get trending searches from Google Trends
+        
+        GET /api/keywords/trending/?geo=US&frequency=daily
+        """
+        geo = request.query_params.get('geo', 'US')
+        frequency = request.query_params.get('frequency', 'daily')
+        
+        try:
+            service = SerpApiTrendingService()
+            trending_data = service.get_trending_now(geo=geo, frequency=frequency)
+            
+            return Response(trending_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching trending searches: {str(e)}")
+            return Response(
+                {'error': 'Failed to fetch trending searches', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def interest_over_time(self, request):
+        """
+        Get interest over time for a keyword
+        
+        GET /api/keywords/interest_over_time/?keyword=AI&geo=US&timeframe=today 12-m
+        """
+        keyword = request.query_params.get('keyword')
+        if not keyword:
+            return Response(
+                {'error': 'keyword parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        geo = request.query_params.get('geo', 'US')
+        timeframe = request.query_params.get('timeframe', 'today 12-m')
+        
+        try:
+            service = SerpApiTrendingService()
+            interest_data = service.get_interest_over_time(keyword=keyword, geo=geo, timeframe=timeframe)
+            
+            return Response(interest_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching interest over time: {str(e)}")
+            return Response(
+                {'error': 'Failed to fetch interest over time', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def related_topics(self, request):
+        """
+        Get related topics and queries for a keyword
+        
+        GET /api/keywords/related_topics/?keyword=AI&geo=US
+        """
+        keyword = request.query_params.get('keyword')
+        if not keyword:
+            return Response(
+                {'error': 'keyword parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        geo = request.query_params.get('geo', 'US')
+        
+        try:
+            service = SerpApiTrendingService()
+            related_data = service.get_related_topics(keyword=keyword, geo=geo)
+            
+            return Response(related_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching related topics: {str(e)}")
+            return Response(
+                {'error': 'Failed to fetch related topics', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def niches(self, request):
+        """
+        Get list of available niche categories
+        
+        GET /api/keywords/niches/
+        """
+        try:
+            service = SerpApiTrendingService()
+            niches = service.get_available_niches()
+            
+            return Response({
+                'niches': niches,
+                'total_count': len(niches)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching niches: {str(e)}")
+            return Response(
+                {'error': 'Failed to fetch niches', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def niche_keywords(self, request):
+        """
+        Get trending keywords for a specific niche
+        
+        GET /api/keywords/niche_keywords/?niche=technology&geo=US&limit=20
+        """
+        niche = request.query_params.get('niche')
+        if not niche:
+            return Response(
+                {'error': 'niche parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        geo = request.query_params.get('geo', 'US')
+        limit = int(request.query_params.get('limit', 20))
+        
+        try:
+            service = SerpApiTrendingService()
+            niche_data = service.get_niche_keywords(niche=niche, geo=geo, limit=limit)
+            
+            return Response(niche_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching niche keywords: {str(e)}")
+            return Response(
+                {'error': 'Failed to fetch niche keywords', 'detail': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

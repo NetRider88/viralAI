@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, TrendingUp, Hash, Copy, Check, Instagram, Youtube, Twitter, Linkedin, Facebook, Info, Globe, Languages } from 'lucide-react';
+import { Search, Loader2, TrendingUp, Hash, Copy, Check, Instagram, Youtube, Twitter, Linkedin, Facebook, Info, Globe, Languages, Target, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
@@ -70,6 +70,21 @@ const platformIcons: Record<string, any> = {
   tiktok: Hash,
 };
 
+interface Niche {
+  id: string;
+  name: string;
+  description: string;
+  seed_keywords: string[];
+}
+
+interface NicheKeyword {
+  keyword: string;
+  trend: string;
+  value: number | string;
+  growth: string;
+  popularity: string;
+}
+
 export default function KeywordResearchPage() {
   const [keyword, setKeyword] = useState('');
   const [country, setCountry] = useState('us');
@@ -77,6 +92,13 @@ export default function KeywordResearchPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ResearchResult | null>(null);
   const [copiedKeyword, setCopiedKeyword] = useState<string | null>(null);
+  
+  // Niche Explorer state
+  const [activeTab, setActiveTab] = useState('research');
+  const [niches, setNiches] = useState<Niche[]>([]);
+  const [selectedNiche, setSelectedNiche] = useState('');
+  const [nicheKeywords, setNicheKeywords] = useState<NicheKeyword[]>([]);
+  const [nicheLoading, setNicheLoading] = useState(false);
 
   // Load results from sessionStorage on mount
   useEffect(() => {
@@ -95,7 +117,42 @@ export default function KeywordResearchPage() {
     if (savedKeyword) setKeyword(savedKeyword);
     if (savedCountry) setCountry(savedCountry);
     if (savedLanguage) setLanguage(savedLanguage);
+    
+    // Fetch available niches
+    fetchNiches();
   }, []);
+
+  const fetchNiches = async () => {
+    try {
+      const response = await api.get('/keywords/niches/');
+      setNiches(response.data.niches || []);
+    } catch (error) {
+      console.error('Failed to fetch niches:', error);
+    }
+  };
+
+  const handleNicheChange = async (nicheId: string) => {
+    setSelectedNiche(nicheId);
+    if (!nicheId) {
+      setNicheKeywords([]);
+      return;
+    }
+
+    setNicheLoading(true);
+    try {
+      const response = await api.get(`/keywords/niche_keywords/?niche=${nicheId}&geo=${country.toUpperCase()}&limit=20`);
+      const keywords = response.data.keywords || [];
+      setNicheKeywords(keywords);
+      const count = response.data.total_count || keywords.length;
+      toast.success(`Found ${count} trending keywords in ${nicheId}!`);
+    } catch (error: any) {
+      console.error('Failed to fetch niche keywords:', error);
+      toast.error(error.response?.data?.error || 'Failed to fetch niche keywords');
+      setNicheKeywords([]);
+    } finally {
+      setNicheLoading(false);
+    }
+  };
 
   const handleResearch = async () => {
     if (!keyword.trim()) {
@@ -234,35 +291,52 @@ export default function KeywordResearchPage() {
     <DashboardLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Keyword Research
-            </h1>
-            <p className="text-gray-600">
-              Discover trending keywords and viral topics across all platforms
-            </p>
-          </div>
-          {results && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setResults(null);
-                setKeyword('');
-                sessionStorage.removeItem('keywordResearchResults');
-                sessionStorage.removeItem('keywordResearchKeyword');
-                sessionStorage.removeItem('keywordResearchCountry');
-                sessionStorage.removeItem('keywordResearchLanguage');
-                toast.success('Results cleared');
-              }}
-            >
-              Clear Results
-            </Button>
-          )}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            🔥 Viral Search
+          </h1>
+          <p className="text-gray-600">
+            Discover trending keywords and viral topics across all platforms
+          </p>
         </div>
 
-        {/* Search Form */}
-        <Card className="mb-8">
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="research">
+              <Search className="h-4 w-4 mr-2" />
+              Keywords
+            </TabsTrigger>
+            <TabsTrigger value="niche">
+              <Target className="h-4 w-4 mr-2" />
+              Niches
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Keyword Research Tab */}
+          <TabsContent value="research">
+            <div className="space-y-6">
+              {results && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setResults(null);
+                      setKeyword('');
+                      sessionStorage.removeItem('keywordResearchResults');
+                      sessionStorage.removeItem('keywordResearchKeyword');
+                      sessionStorage.removeItem('keywordResearchCountry');
+                      sessionStorage.removeItem('keywordResearchLanguage');
+                      toast.success('Results cleared');
+                    }}
+                  >
+                    Clear Results
+                  </Button>
+                </div>
+              )}
+
+              {/* Search Form */}
+              <Card>
           <CardHeader>
             <CardTitle>Search Keywords</CardTitle>
             <CardDescription>
@@ -695,6 +769,187 @@ export default function KeywordResearchPage() {
             </CardContent>
           </Card>
         )}
+            </div>
+          </TabsContent>
+
+          {/* Niches Tab */}
+          <TabsContent value="niche">
+            <div className="space-y-6">
+              {/* Niche Selector */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Select a Niche</CardTitle>
+                  <CardDescription>
+                    Choose a niche category to see trending keywords from Google Trends
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-10">
+                      <Select value={selectedNiche} onValueChange={handleNicheChange}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Choose a niche..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {niches.map((niche) => (
+                            <SelectItem key={niche.id} value={niche.id}>
+                              <span className="capitalize">{niche.name}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      {selectedNiche && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedNiche('');
+                            setNicheKeywords([]);
+                          }}
+                          className="w-full h-12"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Loading */}
+              {nicheLoading && (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-16">
+                    <Loader2 className="h-12 w-12 text-purple-600 animate-spin mb-4" />
+                    <p className="text-gray-600">Fetching trending keywords...</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Niche Keywords Results */}
+              {!nicheLoading && nicheKeywords.length > 0 && (
+                <div className="space-y-6">
+                  {/* Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-gray-600">
+                          Total Keywords
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-purple-600">
+                          {nicheKeywords.length}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-gray-600">
+                          Rising Trends
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-green-600">
+                          {nicheKeywords.filter(k => k.trend === 'rising').length}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-gray-600">
+                          Niche
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xl font-bold text-gray-900 capitalize">
+                          {selectedNiche}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Keywords Grid */}
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>Trending Keywords</CardTitle>
+                          <CardDescription>
+                            Real-time data from Google Trends
+                          </CardDescription>
+                        </div>
+                        <Sparkles className="h-6 w-6 text-yellow-500" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {nicheKeywords.map((kw, idx) => (
+                          <div
+                            key={idx}
+                            className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border-2 border-purple-100 hover:border-purple-300 transition-all group"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-lg font-semibold text-gray-900 mb-1 truncate">
+                                  {kw.keyword}
+                                </h4>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant={kw.trend === 'rising' ? 'default' : 'secondary'}>
+                                    {kw.trend === 'rising' ? '📈 Rising' : '⭐ Popular'}
+                                  </Badge>
+                                  <span className={`text-sm font-bold ${kw.trend === 'rising' ? 'text-green-600' : 'text-blue-600'}`}>
+                                    {kw.growth}
+                                  </span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {kw.popularity}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyKeyword(kw.keyword)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                              >
+                                {copiedKeyword === kw.keyword ? (
+                                  <Check className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-purple-200">
+                              <p className="text-xs text-gray-600">
+                                Trend Value: <span className="font-semibold">{kw.value}</span>
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Empty State for Niches */}
+              {!nicheLoading && !selectedNiche && nicheKeywords.length === 0 && (
+                <Card className="border-dashed border-2">
+                  <CardContent className="flex flex-col items-center justify-center py-16">
+                    <Target className="h-16 w-16 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Select a Niche to Get Started
+                    </h3>
+                    <p className="text-gray-600 text-center max-w-md">
+                      Choose a niche category above to discover trending keywords
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

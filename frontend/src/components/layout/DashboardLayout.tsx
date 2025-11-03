@@ -17,6 +17,7 @@ import {
   User,
   CreditCard,
   Settings as SettingsIcon,
+  Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -31,7 +32,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Keyword Research', href: '/dashboard/keywords', icon: Search },
+  { name: 'Viral Search', href: '/dashboard/keywords', icon: Search },
   { name: 'Content Generator', href: '/dashboard/content', icon: Sparkles },
   { name: 'My Content', href: '/dashboard/my-content', icon: FileText },
   { name: 'Link Tracking', href: '/dashboard/links', icon: Link2 },
