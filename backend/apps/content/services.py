@@ -252,62 +252,89 @@ Make it viral-worthy and platform-optimized!"""
         self,
         prompt: str,
         style: str = 'natural',
-        size: str = '1024x1024'
+        size: str = '1024x1024',
+        max_retries: int = 3
     ) -> Dict:
         """
-        Generate image using OpenAI DALL-E 3
+        Generate image using OpenAI DALL-E 3 with retry logic for server errors
         
         Args:
             prompt: Image description
             style: Image style (natural, vivid)
             size: Image size (1024x1024, 1024x1792, 1792x1024)
+            max_retries: Maximum number of retry attempts (default: 3)
         
         Returns:
-            Dict with image URL and metadata
+            Dict with image URL and metadata, or None if all attempts fail
         """
-        try:
-            if not self.image_client:
-                logger.error("Image client not initialized. Cannot generate images.")
+        import time
+        
+        if not self.image_client:
+            logger.error("Image client not initialized. Cannot generate images.")
+            return None
+        
+        logger.info(f"Generating image with prompt: {prompt[:100]}...")
+        
+        for attempt in range(max_retries):
+            try:
+                # Use appropriate model based on client type
+                if self.use_openai:
+                    # OpenAI DALL-E 3
+                    response = self.image_client.images.generate(
+                        model="dall-e-3",
+                        prompt=prompt,
+                        size=size,
+                        quality="standard",
+                        n=1,
+                    )
+                else:
+                    # LiteLLM
+                    response = self.image_client.images.generate(
+                        model=self.image_model,
+                        prompt=prompt,
+                        size=size,
+                        n=1,
+                    )
+                
+                image_url = response.data[0].url
+                revised_prompt = getattr(response.data[0], 'revised_prompt', prompt)
+                
+                logger.info(f"Image generated successfully: {image_url[:50]}...")
+                
+                return {
+                    'url': image_url,
+                    'prompt': prompt,
+                    'revised_prompt': revised_prompt,
+                    'size': size,
+                    'style': style,
+                }
+                
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error generating image (attempt {attempt + 1}/{max_retries}): {error_msg}")
+                
+                # Check if it's a server error (500) that we should retry
+                is_server_error = any([
+                    'server_error' in error_msg,
+                    '500' in error_msg,
+                    'server had an error' in error_msg.lower(),
+                    'internal server error' in error_msg.lower()
+                ])
+                
+                if is_server_error and attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) * 2  # Exponential backoff: 2s, 4s, 8s
+                    logger.info(f"OpenAI server error detected. Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    continue
+                
+                # For other errors or last attempt, log full traceback and return None
+                if attempt == max_retries - 1:
+                    logger.error(f"Failed to generate image after {max_retries} attempts")
+                    logger.exception(e)
+                
                 return None
-            
-            logger.info(f"Generating image with prompt: {prompt[:100]}...")
-            
-            # Use appropriate model based on client type
-            if self.use_openai:
-                # OpenAI DALL-E 3
-                response = self.image_client.images.generate(
-                    model="dall-e-3",
-                    prompt=prompt,
-                    size=size,
-                    quality="standard",
-                    n=1,
-                )
-            else:
-                # LiteLLM
-                response = self.image_client.images.generate(
-                    model=self.image_model,
-                    prompt=prompt,
-                    size=size,
-                    n=1,
-                )
-            
-            image_url = response.data[0].url
-            revised_prompt = getattr(response.data[0], 'revised_prompt', prompt)
-            
-            logger.info(f"Image generated successfully: {image_url[:50]}...")
-            
-            return {
-                'url': image_url,
-                'prompt': prompt,
-                'revised_prompt': revised_prompt,
-                'size': size,
-                'style': style,
-            }
-            
-        except Exception as e:
-            logger.error(f"Error generating image: {str(e)}")
-            logger.exception(e)  # Log full traceback
-            return None  # Return None instead of raising to prevent content generation from failing
+        
+        return None
     
     def generate_carousel_images(
         self,
