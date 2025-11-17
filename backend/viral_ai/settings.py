@@ -40,6 +40,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'vi
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',  # Modern admin theme
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -260,3 +261,35 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Password Reset Token Timeout (in seconds) - 24 hours
 PASSWORD_RESET_TIMEOUT = 86400  # 24 hours
+
+# ============================================
+# Jazzmin Admin Theme Configuration - Light Theme
+# ============================================
+JAZZMIN_SETTINGS = {
+    'site_title': 'VIRAL.AI Admin',
+    'site_header': 'VIRAL.AI Administration',
+    'site_brand': 'VIRAL.AI',
+    'welcome_sign': 'Welcome to VIRAL.AI Admin Portal',
+    'copyright': 'AI-IT.io',
+    'show_sidebar': True,
+    'navigation_expanded': True,
+    'icons': {
+        'auth': 'fas fa-users-cog',
+        'auth.user': 'fas fa-user',
+        'auth.Group': 'fas fa-users',
+    },
+}
+
+JAZZMIN_UI_TWEAKS = {
+    'navbar_small_text': False,
+    'footer_small_text': False,
+    'body_small_text': False,
+    'brand_small_text': False,
+    'brand_colour': False,
+    'accent': 'accent-primary',
+    'navbar': 'navbar-white navbar-light',
+    'no_navbar_border': False,
+    'sidebar': 'sidebar-light-primary',
+    'sidebar_nav_small_text': False,
+    'theme': 'cerulean',
+}
