@@ -25,13 +25,26 @@ export default function SubscriptionPage() {
   const fetchSubscription = async () => {
     try {
       const token = localStorage.getItem('access_token')
+      console.log('Fetching profile with token:', token ? 'Token exists' : 'No token')
       const res = await fetch('/api/auth/profile/', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       })
+
+      console.log('Subscription response status:', res.status)
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") === -1) {
+        const text = await res.text();
+        console.error("Received non-JSON response:", text.substring(0, 200));
+        throw new Error("Received non-JSON response");
+      }
+
       const data = await res.json()
-      
+
       // Mock subscription data based on user tier
       setSubscription({
         plan_name: data.subscription_tier || 'free',
@@ -42,6 +55,13 @@ export default function SubscriptionPage() {
       })
     } catch (error) {
       console.error('Failed to fetch subscription:', error)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.error('Network error - possible causes:')
+        console.error('1. Backend server not running')
+        console.error('2. CORS issue')
+        console.error('3. Browser extension blocking request')
+        console.error('4. Proxy configuration issue')
+      }
     } finally {
       setLoading(false)
     }

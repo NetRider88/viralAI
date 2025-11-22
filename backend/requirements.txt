@@ -26,6 +26,7 @@ Pillow==10.1.0
 # HTTP & APIs
 requests==2.31.0
 httpx==0.25.2
+drf-yasg==1.21.7
 
 # AI/ML - LiteLLM Integration
 openai==1.6.1

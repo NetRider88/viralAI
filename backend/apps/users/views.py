@@ -208,14 +208,14 @@ class UserUsageView(APIView):
         )
         
         # Get subscription limits
-        tier_limits = {
+        TIER_LIMITS = {
             'free': {'content_blocks': 1, 'videos': 0, 'images': 1},
             'creator': {'content_blocks': 50, 'videos': 5, 'images': 50},
             'pro': {'content_blocks': 200, 'videos': 999, 'images': 200},
             'agency': {'content_blocks': 9999, 'videos': 9999, 'images': 9999},
         }
         
-        limits = tier_limits.get(request.user.subscription_tier, tier_limits['free'])
+        limits = TIER_LIMITS.get(request.user.subscription_tier, TIER_LIMITS['free'])
         
         return Response({
             'usage': UsageTrackingSerializer(usage).data,
@@ -247,52 +247,23 @@ class ForgotPasswordView(APIView):
             user = User.objects.get(email=email)
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-            reset_url = f"https://viral.ai-it.io/reset-password/{uid}/{token}/"
+            
+            # Use SITE_URL from settings
+            from django.conf import settings
+            reset_url = f"{settings.SITE_URL}/reset-password/{uid}/{token}/"
+            
+            # Render email content from template
+            from django.template.loader import render_to_string
+            html_content = render_to_string('emails/password_reset_email.html', {'reset_url': reset_url})
             
             message = Mail(
-                from_email='john@ai-it.io',
+                from_email=settings.FROM_EMAIL,
                 to_emails=email,
                 subject='Reset Your Password - AI-IT.IO',
-                html_content=f'''
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-                        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-                        .button {{ display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-                        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>🔐 Password Reset Request</h1>
-                        </div>
-                        <div class="content">
-                            <p>Hi there,</p>
-                            <p>We received a request to reset your password for your VIRAL.AI account.</p>
-                            <p>Click the button below to reset your password:</p>
-                            <center>
-                                <a href="{reset_url}" class="button">Reset Password</a>
-                            </center>
-                            <p><strong>This link expires in 24 hours.</strong></p>
-                            <p>If you didn't request this, you can safely ignore this email.</p>
-                            <p>Best regards,<br>The AI-IT.IO Team</p>
-                        </div>
-                        <div class="footer">
-                            <p>© 2025 AI-IT.IO. All rights reserved.</p>
-                            <p>If the button doesn't work, copy and paste this link:<br>{reset_url}</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                '''
+                html_content=html_content
             )
             
-            sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
             sg.send(message)
             
             return Response({'message': 'Password reset email sent'}, status=status.HTTP_200_OK)

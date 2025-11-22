@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'drf_yasg',
     
     # Local apps
     'apps.users',
@@ -204,12 +205,16 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# CSRF Settings for production
+# CSRF Settings
 CSRF_TRUSTED_ORIGINS = env.list(
     'CSRF_TRUSTED_ORIGINS',
     default=[
         'https://viral.ai-it.io',
-        'https://www.viral.ai-it.io'
+        'https://www.viral.ai-it.io',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
     ]
 )
 
@@ -247,10 +252,10 @@ SITE_URL = env('SITE_URL', default='https://viral.ai-it.io')
 BASE_URL = SITE_URL
 
 # CSRF Cookie Settings
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_DOMAIN = '.ai-it.io'  # Share cookie across subdomains
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_DOMAIN = '.ai-it.io' if not DEBUG else None
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
-CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_NAME = 'csrftoken'
 
